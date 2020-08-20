@@ -1,6 +1,5 @@
 import os
 import discord
-from discord import FFmpegPCMAudio
 from discord.ext import commands
 from dotenv import load_dotenv
 
@@ -35,13 +34,14 @@ async def leave(ctx):
 
 @bot.command(pass_context=True, aliases=['p', 'pla'])
 async def play(ctx):
-    # Check if we're already connected to a voice channel, if not connect to
-    # the one the author of the message is in.
-    if ctx.voice_client:
-        ctx.voice_client.play(discord.FFmpegPCMAudio("http://72.29.64.55:9302/;"))
-            #source='https://www.ikirtan.com/Bhai_Amolak_Singh_Jee/Bhai_Amolak_Singh_Jee_01.mp3'))
-    else:
-        await ctx.channel.send(f"{ctx.author.mention} you need to join a voice channel before you can use this command.")
+    # Check if the bot IS NOT connected to a voice chat already. If it is not in a voice chat then call the join()
+    # command to add it to the voice channel the author of the message is currently in.
+    if not ctx.voice_client:
+        await join(ctx)
+
+    ctx.voice_client.play(source=discord.FFmpegPCMAudio("http://72.29.64.55:9302/;"))
+    #source='https://www.ikirtan.com/Bhai_Amolak_Singh_Jee/Bhai_Amolak_Singh_Jee_01.mp3'))
+
 
 @bot.command(pass_context=True, aliases=['s', 'stp'])
 async def stop(ctx):
