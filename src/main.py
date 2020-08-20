@@ -44,9 +44,12 @@ async def join(ctx):
 
 @bot.command(pass_context=True)
 async def leave(ctx):
+    global station
+
     if ctx.voice_client:
         await ctx.message.add_reaction('🙏🏼')
         await ctx.voice_client.disconnect()
+        station = None
     else:
         await ctx.channel.send(f"{ctx.author.mention} ਵਾਹਿਗੁਰੂ, I'm not in a voice channel")
 
@@ -76,9 +79,12 @@ async def play(ctx, stream_alias: str = "247kirtan"):
 
 @bot.command(pass_context=True, aliases=['s', 'stp'])
 async def stop(ctx):
+    global station
+
     if ctx.voice_client:
         await ctx.message.add_reaction('🙏🏼')
         ctx.voice_client.stop()
+        station = None
     else:
         await ctx.channel.send(f"{ctx.author.mention} ਵਾਹਿਗੁਰੂ, there isn't anything playing ji")
 
