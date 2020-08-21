@@ -1,6 +1,7 @@
 FROM python:3.8
 
 # set the working directory in the container
+RUN mkdir /gurmat-bot
 WORKDIR /gurmat-bot
 
 # copy the dependencies file to the working directory
