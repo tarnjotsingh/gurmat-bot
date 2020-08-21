@@ -1,0 +1,13 @@
+version:  '3.5'
+
+services:
+  gurmat_bot:
+    build: './'
+    container_name: 'gurmat-bot'
+    labels:
+      com.description: 'Gurmat Bot for Sikh Discord'
+    ports:
+      - "80:80"
+      - "443:443"
+    entrypoint: "python src/main.py"
+    

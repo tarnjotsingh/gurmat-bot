@@ -1,39 +1,46 @@
 import os
+import logging as log
 import discord
 from discord.ext import commands
 from dotenv import load_dotenv
 from station import Station
+from utils import Utils
+
+
+log.basicConfig(level=log.INFO)
+
 
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
 bot = commands.Bot(command_prefix='.')
+utils = Utils(log.DEBUG)
 station = None
+
 
 @bot.event
 async def on_ready():
-    print(f'{bot.user} has connected to Discord!')
+    log.info(f'{bot.user} has connected to Discord!')
+
 
 @bot.event
-async def on_message(msg):
-    author = msg.author
-    channel = msg.channel
-    vaheguru_list = ['ਵਾਹਿਗੁਰੂ', 'vaheguru', 'vaheguroo', 'waheguru', 'waheguroo']
-
-    if msg.content in vaheguru_list:
-        await msg.channel.send(f"{msg.author.mention} ਵਾਹਿਗੁਰੂ")
-
-    await bot.process_commands(msg)
+async def on_message(msg: discord.Message):
+    if msg.content.startswith(bot.command_prefix):
+        await bot.process_commands(msg)
+    else:
+        await utils.message_handler(bot, msg)
 
 
 @bot.command(pass_context=True)
-async def ping(ctx):
+async def ping(ctx: commands.Context):
     author = ctx.author
     channel = ctx.channel
+    log.info(utils.user_usage_log(ctx))
     await channel.send(f"{author.mention} pong!")
 
 
 @bot.command(pass_context=True)
-async def join(ctx):
+async def join(ctx: commands.Context):
+    log.info(utils.user_usage_log(ctx))
     connected = ctx.message.author.voice
     if connected:
         await ctx.message.add_reaction('🙏🏼')
@@ -43,8 +50,9 @@ async def join(ctx):
 
 
 @bot.command(pass_context=True)
-async def leave(ctx):
+async def leave(ctx: commands.Context):
     global station
+    log.info(utils.user_usage_log(ctx))
 
     if ctx.voice_client:
         await ctx.message.add_reaction('🙏🏼')
@@ -55,8 +63,9 @@ async def leave(ctx):
 
 
 @bot.command(pass_context=True, aliases=['p', 'pla'])
-async def play(ctx, stream_alias: str = "247kirtan"):
+async def play(ctx: commands.Context, stream_alias: str = "247kirtan"):
     global station
+    log.info(utils.user_usage_log(ctx))
 
     # Check if the bot IS NOT connected to a voice chat already. If it is not in a voice chat then call the join()
     # command to add it to the voice channel the author of the message is currently in.
@@ -78,8 +87,9 @@ async def play(ctx, stream_alias: str = "247kirtan"):
 
 
 @bot.command(pass_context=True, aliases=['s', 'stp'])
-async def stop(ctx):
+async def stop(ctx: commands.Context):
     global station
+    log.info(utils.user_usage_log(ctx))
 
     if ctx.voice_client:
         await ctx.message.add_reaction('🙏🏼')
