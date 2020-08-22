@@ -4,8 +4,9 @@ from discord.ext import commands
 from typing import Union
 
 vaheguru_list = [
-    'ਵਾਹਿਗੁਰੂ', 'vaheguru', 'vaheguroo', 'waheguru', 'waheguroo',
-    'guru ji', 'jesus', 'christ', 'god', 'jai sri raam', 'raam', 'ram'
+    'ਵਾਹਿਗੁਰੂ', 'vaheguru', 'vaheguroo', 'waheguru', 'waheguroo', 'guru'
+    'guru ji', 'jesus', 'christ', 'god', 'jai sri raam', 'raam', 'ram',
+    'allah', 'omg', 'rab', 'rabb', 'khuda', 'khudha'
     ]
 
 class Utils:

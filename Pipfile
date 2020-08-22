@@ -9,6 +9,7 @@ verify_ssl = true
 "discord.py" = {extras = ["voice"], version = "*"}
 munch = "*"
 python-dotenv = "*"
+youtube-dl = "*"
 
 [requires]
 python_version = "3.8"

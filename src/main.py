@@ -98,5 +98,12 @@ async def stop(ctx: commands.Context):
     else:
         await ctx.channel.send(f"{ctx.author.mention} ਵਾਹਿਗੁਰੂ, there isn't anything playing ji")
 
+@bot.command(pass_context=True, aliases=['g', 'gmt'])
+async def gurmat(ctx):
+    log.info(utils.user_usage_log(ctx))
+    # This could be the generic entry point for all commands which will choose the appropriate action to take
+    # based on the extra arguments given. E.g. !gurmat play [station-name]
+    # Another one could be !gurmat ping
+    pass
 
 bot.run(TOKEN)
