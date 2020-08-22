@@ -6,15 +6,16 @@ from dotenv import load_dotenv
 from station import Station
 from utils import Utils
 
-
-log.basicConfig(level=log.INFO)
+LOG_LEVEL = log.INFO
+log.basicConfig(level=LOG_LEVEL)
 
 
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
-bot = commands.Bot(command_prefix='.')
-utils = Utils(log.DEBUG)
+bot = commands.Bot(command_prefix='!g ')
+utils = Utils(LOG_LEVEL)
 station = None
+Station.set_logging(log.DEBUG)
 
 
 @bot.event
@@ -30,7 +31,7 @@ async def on_message(msg: discord.Message):
         await utils.message_handler(bot, msg)
 
 
-@bot.command(pass_context=True)
+@bot.command()
 async def ping(ctx: commands.Context):
     author = ctx.author
     channel = ctx.channel
@@ -38,7 +39,7 @@ async def ping(ctx: commands.Context):
     await channel.send(f"{author.mention} pong!")
 
 
-@bot.command(pass_context=True)
+@bot.command()
 async def join(ctx: commands.Context):
     log.info(utils.user_usage_log(ctx))
     connected = ctx.message.author.voice
@@ -49,7 +50,7 @@ async def join(ctx: commands.Context):
         await ctx.channel.send(f"{ctx.author.mention} ਵਾਹਿਗੁਰੂ, you need to join a voice channel first ji")
 
 
-@bot.command(pass_context=True)
+@bot.command()
 async def leave(ctx: commands.Context):
     global station
     log.info(utils.user_usage_log(ctx))
@@ -62,7 +63,7 @@ async def leave(ctx: commands.Context):
         await ctx.channel.send(f"{ctx.author.mention} ਵਾਹਿਗੁਰੂ, I'm not in a voice channel")
 
 
-@bot.command(pass_context=True, aliases=['p', 'pla'])
+@bot.command(aliases=['p', 'pla'])
 async def play(ctx: commands.Context, stream_alias: str = "247kirtan"):
     global station
     log.info(utils.user_usage_log(ctx))
@@ -81,12 +82,9 @@ async def play(ctx: commands.Context, stream_alias: str = "247kirtan"):
         if ctx.voice_client.is_playing():
             ctx.voice_client.stop()
         ctx.voice_client.play(source=discord.FFmpegPCMAudio(station.url))
-        
-        # Send reaction as a confirmation the command has been registered.
-        await ctx.message.add_reaction('🙏🏼')
 
 
-@bot.command(pass_context=True, aliases=['s', 'stp'])
+@bot.command(aliases=['s', 'stp'])
 async def stop(ctx: commands.Context):
     global station
     log.info(utils.user_usage_log(ctx))
@@ -98,12 +96,16 @@ async def stop(ctx: commands.Context):
     else:
         await ctx.channel.send(f"{ctx.author.mention} ਵਾਹਿਗੁਰੂ, there isn't anything playing ji")
 
-@bot.command(pass_context=True, aliases=['g', 'gmt'])
-async def gurmat(ctx):
+
+@bot.command(aliases=['nowPlaying'])
+async def np(ctx: commands.Context):
+    global station
     log.info(utils.user_usage_log(ctx))
-    # This could be the generic entry point for all commands which will choose the appropriate action to take
-    # based on the extra arguments given. E.g. !gurmat play [station-name]
-    # Another one could be !gurmat ping
-    pass
+
+    if ctx.voice_client:
+        await ctx.channel.send(f"Playing: {station.stream_alias}\nElapsed time: {station.get_runtime()}")
+    else:
+        await ctx.channel.send(f"{ctx.author.mention} ਵਾਹਿਗੁਰੂ, there isn't anything playing ji")
+
 
 bot.run(TOKEN)
