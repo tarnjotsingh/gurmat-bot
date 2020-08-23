@@ -3,7 +3,7 @@ import logging
 import discord
 from discord.ext import commands
 from dotenv import load_dotenv
-from station import Radio
+from radio import Radio
 from utils import message_handler, user_usage_log
 
 
@@ -11,7 +11,6 @@ LOG_LEVEL = logging.INFO
 logging.basicConfig(level=LOG_LEVEL)
 logger = logging.getLogger("bot_main")
 logger.setLevel(LOG_LEVEL)
-rad = Radio(LOG_LEVEL)
 
 logger.info(f"Logging set to: {LOG_LEVEL}")
 
@@ -34,31 +33,12 @@ async def on_message(msg: discord.Message):
 
 @bot.command()
 async def ping(ctx: commands.Context):
+    """Just for testing if the bot is up!"""
     author = ctx.author
     channel = ctx.channel
     logger.info(user_usage_log(ctx))
     await channel.send(f"{author.mention} pong!")
 
 
-@bot.command(aliases=['r', 'rad'])
-async def radio(ctx: commands.Context, action: str = None, station: str = None):
-    global rad
-    logger.info(user_usage_log(ctx))
-
-    switch = {
-        "join": rad.join,
-        "leave": rad.leave,
-        "play": rad.play,
-        "stop": rad.stop,
-        "np": rad.np
-    }
-
-    handler = switch.get(action, lambda ctx: ctx.channel.send(f"{ctx.author.mention} ਵਾਹਿਗੁਰੂ, invalid command ji"))
-
-    if action.__eq__("play"):
-        await handler(ctx, stream_alias=station)
-    else:
-        await handler(ctx)
-
-
+bot.add_cog(Radio(bot, LOG_LEVEL))
 bot.run(TOKEN)
