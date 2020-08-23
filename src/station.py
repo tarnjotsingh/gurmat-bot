@@ -18,13 +18,14 @@ class Station:
     start_time: str = None 
     logger = logging.getLogger("Station")
 
-    def __init__(self, stream_alias: str = "247kirtan"):
+    def __init__(self, stream_alias: str = "247kirtan", started_by: discord.Member = None):
         # If the provided stream alias doesn't exist, default to 247kirtan
         if stream_alias not in links:
             stream_alias = "247kirtan"
 
         self.stream_alias = stream_alias
         self.url = links[self.stream_alias]
+        self.started_by = started_by
         self.start_time = datetime.now()
         self.logger.setLevel(logging.INFO)
 
@@ -40,7 +41,6 @@ class Radio:
         self.station: Station = None
         self.logger = logging.getLogger("Radio")
         self.logger.setLevel(log_lvl)
-        print("Logging set")
 
     async def join(self, ctx: commands.Context):
         self.logger.info(user_usage_log(ctx))
@@ -72,8 +72,8 @@ class Radio:
         if self.station and self.station.stream_alias.__eq__(stream_alias):
             await ctx.channel.send(f"{ctx.author.mention} ਵਾਹਿਗੁਰੂ, the selected station is already playing ji")
         else:
-            self.station = Station(stream_alias)
-            # Restart/Start the stream based on the configured station
+            self.station = Station(stream_alias, ctx.author)
+            # Restart/Start the stream based on if something is already playing
             if ctx.voice_client.is_playing():
                 ctx.voice_client.stop()
             ctx.voice_client.play(source=discord.FFmpegPCMAudio(self.station.url))
@@ -92,6 +92,9 @@ class Radio:
         self.logger.info(user_usage_log(ctx))
 
         if ctx.voice_client and self.station:
-            await ctx.channel.send(f"Playing: {self.station.stream_alias}\nElapsed time: {self.station.get_runtime()}")
+            embed = discord.Embed()
+            embed.colour = 0xffa900
+            embed.description = f"Playing: {self.station.stream_alias}[{self.station.started_by.mention}]\nElapsed time: {self.station.get_runtime()}"
+            await ctx.channel.send(embed=embed)
         else:
             await ctx.channel.send(f"{ctx.author.mention} ਵਾਹਿਗੁਰੂ, there isn't anything playing ji")
