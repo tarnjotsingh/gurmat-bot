@@ -61,12 +61,4 @@ async def radio(ctx: commands.Context, action: str = None, station: str = None):
         await handler(ctx)
 
 
-@bot.command()
-async def test(ctx: commands.Context):
-    embed = discord.Embed()
-    embed.colour = 0x00ff00
-    embed.title = "Test"
-    embed.description = "This is my test embed!"
-    await ctx.send(embed=embed)
-
 bot.run(TOKEN)

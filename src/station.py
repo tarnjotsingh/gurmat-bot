@@ -12,6 +12,7 @@ links = {
     "247kirtan": "http://janus.shoutca.st:8195/stream"
 }
 
+
 class Station:
     url: str = None
     stream_alias: str = None
