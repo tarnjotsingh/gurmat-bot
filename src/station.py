@@ -15,10 +15,6 @@ links = {
 
 
 class Station:
-    url: str
-    stream_alias: str
-    start_time: str
-    is_youtube: bool
 
     def __init__(self, stream_alias: str = "247kirtan", started_by: discord.Member = None):
         # If the provided stream alias doesn't exist, default to 247kirtan
@@ -28,10 +24,11 @@ class Station:
         self.logger = logging.getLogger("Station")
         self.logger.setLevel(logging.INFO)
 
-        self.url: str = links[self.stream_alias]
         self.stream_alias: str = stream_alias
+        self.url: str = links[stream_alias]
         self.started_by: discord.Member = started_by
-        self.start_time = datetime.now()
+        self.start_time: datetime = datetime.now()
+        self.is_youtube: bool = True if "youtube" in self.url.lower() else False
 
     def get_runtime(self):
         self.logger.debug(f"get_runtime method for station {self.stream_alias} called")

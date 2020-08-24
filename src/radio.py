@@ -113,7 +113,11 @@ class Radio(commands.Cog):
             # Restart/Start the stream based on if something is already playing
             if ctx.voice_client.is_playing():
                 ctx.voice_client.stop()
-            ctx.voice_client.play(source=discord.FFmpegPCMAudio(self.station.url))
+
+            if self.station.is_youtube:
+                await self._stream_yt(ctx, self.station.url)
+            else:
+                await self._stream_url(ctx, self.station.url)
 
     @radio.command()
     async def stop(self, ctx: commands.Context):
@@ -142,11 +146,16 @@ class Radio(commands.Cog):
         else:
             await ctx.send(f"{ctx.author.mention} ਵਾਹਿਗੁਰੂ, there isn't anything playing ji")
 
-    async def stream(self, ctx, *, url):
-        """Streams from a url (same as yt, but doesn't predownload)"""
+    async def _stream_yt(self, ctx: commands.Context, url: str):
+        """Streams from a youtube url"""
 
         async with ctx.typing():
             player = await YTDLSource.from_url(url, loop=self.bot.loop, stream=True)
             ctx.voice_client.play(player, after=lambda e: print('Player error: %s' % e) if e else None)
 
-        await ctx.send('Now playing: {}'.format(player.title))
+    async def _stream_url(self, ctx: commands.Context, url: str):
+        """Streams from the provided url"""
+
+        async with ctx.typing():
+            ctx.voice_client.play(source=discord.FFmpegPCMAudio(self.station.url))
+
