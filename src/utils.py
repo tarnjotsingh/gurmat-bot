@@ -7,14 +7,15 @@ logger = logging.getLogger("utils")
 logger.setLevel(logging.DEBUG)
 
 vaheguru_list = [
-    'ਵਾਹਿਗੁਰੂ', 'vaheguru', 'vaheguroo', 'waheguru', 'waheguroo', 'guru'
-    'guru ji', 'jesus', 'christ', 'god', 'jai sri raam', 'raam', 'ram',
-    'allah', 'omg', 'rab', 'rabb', 'khuda', 'khudha'
-    ]
+    'ਵਾਹਿਗੁਰੂ', 'vaheguru', 'vaheguroo', 'waheguru', 'waheguroo', 'guru' 'guru ji', 'jesus', 'christ', 'god',
+    'jai sri raam', 'raam', 'ram', 'allah', 'omg', 'rab', 'rabb', 'khuda', 'khudha', 'akaal', 'akal'
+]
+
 
 def user_usage_log(ctx) -> str:
     # Use discords context object to build the string
     return f"{ctx.author} used the {ctx.command} command in the {ctx.message.channel} channel"
+
 
 async def message_handler(message: discord.Message):
     logger.debug("Message handler called")
