@@ -11,6 +11,7 @@ munch = "*"
 python-dotenv = "*"
 youtube-dl = "*"
 asyncio = "*"
+pytest-asyncio = "*"
 
 [requires]
 python_version = "3.8"

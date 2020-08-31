@@ -1,4 +1,3 @@
-import os
 import logging
 import discord
 import asyncio
@@ -6,11 +5,10 @@ import youtube_dl
 from typing import Union
 from station import Station
 from discord.ext import commands
-from utils import message_handler, user_usage_log
+from utils import user_usage_log
 
 # Suppress noise about console usage from errors
 youtube_dl.utils.bug_reports_message = lambda: ''
-
 
 ytdl_format_options = {
     'format': 'bestaudio/best',
@@ -57,11 +55,15 @@ class YTDLSource(discord.PCMVolumeTransformer):
 
 class Radio(commands.Cog):
     # Radio will have a station which can be set up accordingly since they all use the station object
-    def __init__(self, bot: commands.Bot, log_lvl: Union[int, str] = logging.INFO):
+    def __init__(self, bot: commands.Bot):
         self.station: Station = None
         self.logger = logging.getLogger("Radio")
-        self.logger.setLevel(log_lvl)
+        self.logger.setLevel(logging.INFO)
         self.bot = bot
+
+    def logging(self, log_lvl: Union[int, str]):
+        self.logger.setLevel(log_lvl)
+        return self
 
     @commands.group(aliases=['r', 'rad'])
     async def radio(self, ctx: commands.Context):
@@ -158,4 +160,5 @@ class Radio(commands.Cog):
 
         async with ctx.typing():
             ctx.voice_client.play(source=discord.FFmpegPCMAudio(self.station.url))
+
 
