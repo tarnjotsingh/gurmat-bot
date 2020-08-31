@@ -6,7 +6,6 @@ from dotenv import load_dotenv
 from radio import Radio
 from utils import message_handler, user_usage_log
 
-
 LOG_LEVEL = logging.INFO
 logging.basicConfig(level=LOG_LEVEL)
 logger = logging.getLogger("bot_main")
@@ -31,6 +30,7 @@ async def on_message(msg: discord.Message):
     else:
         await message_handler(msg)
 
+
 @bot.command()
 async def ping(ctx: commands.Context):
     """Just for testing if the bot is up!"""
@@ -40,6 +40,5 @@ async def ping(ctx: commands.Context):
     await channel.send(f"{author.mention} pong!")
 
 
-
-bot.add_cog(Radio(bot, LOG_LEVEL))
+bot.add_cog(Radio(bot).logging(LOG_LEVEL))
 bot.run(TOKEN)

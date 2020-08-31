@@ -1,9 +1,7 @@
 import logging
 import discord
 from typing import Union
-from discord.ext import commands
 from datetime import datetime, timedelta
-from utils import message_handler, user_usage_log
 
 
 links = {
@@ -29,6 +27,10 @@ class Station:
         self.started_by: discord.Member = started_by
         self.start_time: datetime = datetime.now()
         self.is_youtube: bool = True if "youtube" in self.url.lower() else False
+
+    def logging(self, log_lvl: Union[int, str]):
+        self.logger.setLevel(log_lvl)
+        return self
 
     def get_runtime(self):
         self.logger.debug(f"get_runtime method for station {self.stream_alias} called")
