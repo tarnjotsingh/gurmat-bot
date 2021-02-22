@@ -2,8 +2,9 @@ version:  '3.5'
 
 services:
   gurmat_bot:
+    image: gurmat-bot:1
     build: './'
-    container_name: 'gurmat-bot'
+    container_name: 'gurmatbot'
     labels:
       com.description: 'Gurmat Bot for Sikh Discord'
     ports:
