@@ -3,7 +3,7 @@ import discord
 import asyncio
 import youtube_dl
 from typing import Union
-from station import Station
+from station import Station, links
 from discord.ext import commands
 from utils import user_usage_log
 
@@ -148,6 +148,29 @@ class Radio(commands.Cog):
         else:
             await ctx.send(f"{ctx.author.mention} ਵਾਹਿਗੁਰੂ, there isn't anything playing ji")
 
+
+    @radio.command()
+    async def stations(self, ctx: commands.Context):
+        """Lists all the available stations that can be chosen"""
+
+        self.logger.info(user_usage_log(ctx))
+
+        station_display_list = ""
+        embed = discord.Embed()
+        embed.title = "Available stations"
+
+        if(links):
+            for s in links:
+                station_display_list += f"- {s}:\t{links[s]}\n"
+            embed.colour = 0xffa900
+        else:
+            station_display_list = "No stations available"
+            embed.color =  0x8B0000
+
+        embed.description = station_display_list
+        await ctx.send(embed=embed)
+
+
     async def _stream_yt(self, ctx: commands.Context, url: str):
         """Streams from a youtube url"""
 
@@ -160,5 +183,3 @@ class Radio(commands.Cog):
 
         async with ctx.typing():
             ctx.voice_client.play(source=discord.FFmpegPCMAudio(self.station.url))
-
-
