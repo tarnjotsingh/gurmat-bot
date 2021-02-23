@@ -5,19 +5,19 @@ from datetime import datetime, timedelta
 
 
 links = {
-    "pratanakj": "http://107.190.128.24:9302;",
-    "dskirtan": "http://live16.sgpc.net:8000/;nocache=889869",
-    "247kirtan": "http://janus.shoutca.st:8195/stream",
-    "dgnlofi": "https://www.youtube.com/watch?v=tsshX6bWsNg"
+    "sdo": "http://107.190.128.24:9302",
+    "ds": "http://live16.sgpc.net:8000/;nocache=889869",
+    "247": "http://janus.shoutca.st:8195/stream",
+    "raag": "https://www.youtube.com/watch?v=tsshX6bWsNg"
 }
 
 
 class Station:
 
-    def __init__(self, stream_alias: str = "247kirtan", started_by: discord.Member = None):
+    def __init__(self, stream_alias: str = "247", started_by: discord.Member = None):
         # If the provided stream alias doesn't exist, default to 247kirtan
         if stream_alias not in links:
-            stream_alias = "247kirtan"
+            stream_alias = "247"
 
         self.logger = logging.getLogger("Station")
         self.logger.setLevel(logging.INFO)

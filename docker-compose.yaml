@@ -4,11 +4,12 @@ services:
   gurmat_bot:
     image: gurmat-bot:1
     build: './'
-    container_name: 'gurmatbot'
+    container_name: 'gurmat-bot'
     labels:
-      com.description: 'Gurmat Bot for Sikh Discord'
+      description: 'Gurmat Bot for Sikh Discord'
     ports:
       - "80:80"
       - "443:443"
+    volumes:
+      - "./src:/gurmat-bot/src"
     entrypoint: "python src/main.py"
-    
