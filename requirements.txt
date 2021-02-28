@@ -4,3 +4,4 @@ python-dotenv
 youtube-dl
 asyncio
 pytest-asyncio
+pymongo

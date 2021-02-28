@@ -12,6 +12,7 @@ python-dotenv = "*"
 youtube-dl = "*"
 asyncio = "*"
 pytest-asyncio = "*"
+pymongo = "*"
 
 [requires]
 python_version = "3"

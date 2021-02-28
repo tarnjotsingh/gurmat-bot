@@ -4,26 +4,19 @@ from typing import Union
 from datetime import datetime, timedelta
 
 
-links = {
-    "sdo": "http://107.190.128.24:9302",
-    "ds": "http://live16.sgpc.net:8000/;nocache=889869",
-    "247": "http://janus.shoutca.st:8195/stream",
-    "raag": "https://www.youtube.com/watch?v=tsshX6bWsNg"
-}
-
-
 class Station:
 
-    def __init__(self, stream_alias: str = "247", started_by: discord.Member = None):
-        # If the provided stream alias doesn't exist, default to 247kirtan
-        if stream_alias not in links:
-            stream_alias = "247"
+    def __init__(self, name: str, url: str, started_by: discord.Member = None):
+        if not name:
+            raise InvalidStation("name", name)
+        elif not url:
+            raise InvalidStation("url", url)
 
         self.logger = logging.getLogger("Station")
         self.logger.setLevel(logging.INFO)
 
-        self.stream_alias: str = stream_alias
-        self.url: str = links[stream_alias]
+        self.name: str = name
+        self.url: str = url
         self.started_by: discord.Member = started_by
         self.start_time: datetime = datetime.now()
         self.is_youtube: bool = True if "youtube" in self.url.lower() else False
@@ -33,6 +26,13 @@ class Station:
         return self
 
     def get_runtime(self):
-        self.logger.debug(f"get_runtime method for station {self.stream_alias} called")
+        self.logger.debug(f"get_runtime method for station {self.name} called")
         runtime = datetime.now() - self.start_time
         return runtime - timedelta(microseconds=runtime.microseconds)
+
+
+class InvalidStation(Exception):
+    """Raised when invalid station data is given"""
+    def __init__(self, type: str, invalid_value: str):
+        self.message = f"Invalid station {type} provided of: {invalid_value}"
+

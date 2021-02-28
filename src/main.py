@@ -3,19 +3,36 @@ import logging
 import discord
 from discord.ext import commands
 from dotenv import load_dotenv
+from pymongo import MongoClient, errors
 from radio import Radio
+from reaction_roles import ReactionRoles
 from utils import message_handler, user_usage_log
 
-LOG_LEVEL = logging.INFO
+# Load environment variables
+load_dotenv()
+TOKEN = os.getenv('DISCORD_TOKEN')
+MDB_PORT = int(os.getenv('MONGODB_PORT'))
+LOG_LEVEL = logging.getLevelName(os.getenv('LOG_LEVEL'))
+
+# Configure logging
 logging.basicConfig(level=LOG_LEVEL)
 logger = logging.getLogger("bot_main")
 logger.setLevel(LOG_LEVEL)
-
 logger.info(f"Logging set to: {LOG_LEVEL}")
 
-load_dotenv()
-TOKEN = os.getenv('DISCORD_TOKEN')
+# Initialise discord bot and connection to database
 bot = commands.Bot(command_prefix='.')
+database = None
+
+try:
+    # Attempt to establish a connection with the local mongodb server
+    logging.info("Connecting to the database")
+
+    client = MongoClient(port=MDB_PORT)
+    client.server_info()               # Will throw timeout exception when connection to database can't be made
+    database = client.gurmatbot
+except errors.ServerSelectionTimeoutError:
+    logger.exception("Failed to connect to the database")
 
 
 @bot.event
@@ -40,5 +57,7 @@ async def ping(ctx: commands.Context):
     await channel.send(f"{author.mention} pong!")
 
 
-bot.add_cog(Radio(bot).logging(LOG_LEVEL))
+# Initialise relevant classes and have them added as cogs to the main bot object
+bot.add_cog(Radio(bot, database).logging(LOG_LEVEL))
+bot.add_cog(ReactionRoles(bot, database).logging(LOG_LEVEL))
 bot.run(TOKEN)
