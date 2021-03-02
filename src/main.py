@@ -1,12 +1,14 @@
-import os
 import logging
+import os
+
 import discord
-from discord import Message, Reaction, Member
+from discord import Message, Member, Guild, RawReactionActionEvent
 from discord.ext import commands
 from dotenv import load_dotenv
 from pymongo import MongoClient, errors
+
 from radio import Radio
-from reaction_roles import ReactionRoles, handle_role_assignment, handle_role_unassignment
+from reaction_roles import ReactionRoles, handle_role_assignment
 from utils import message_handler, user_usage_log
 
 # Load environment variables
@@ -22,7 +24,9 @@ logger.setLevel(LOG_LEVEL)
 logger.info(f"Logging set to: {LOG_LEVEL}")
 
 # Initialise discord bot and connection to database
-bot = commands.Bot(command_prefix='.')
+intents = discord.Intents.default()
+intents.members = True
+bot = commands.Bot(command_prefix='.', intents=intents)
 database = None
 
 try:
@@ -50,17 +54,23 @@ async def on_message(msg: Message):
 
 
 @bot.event
-async def on_reaction_add(reaction: Reaction, user: Member):
+async def on_raw_reaction_add(payload: RawReactionActionEvent):
     # This method will capture reactions then call the relvant code to handle it
     # In this case, when we get a reaction on a message sent by the bot we add the relevant role to the user.
-    logger.info(f"{user} reacted with {reaction}")
-    await handle_role_assignment(reaction, user, database)
+    guild: Guild = bot.get_guild(payload.guild_id)
+    user: Member = guild.get_member(payload.user_id)
+
+    logger.info(f"{user} reacted with {payload.emoji}")
+    await handle_role_assignment(payload, user, database)
 
 
 @bot.event
-async def on_raw_reaction_remove(reaction: Reaction, user: Member):
-    logger.info(f"{user} removed reaction {reaction}")
-    await handle_role_unassignment(reaction, user, database)
+async def on_raw_reaction_remove(payload: RawReactionActionEvent):
+    guild: Guild = bot.get_guild(payload.guild_id)
+    user: Member = guild.get_member(payload.user_id)
+
+    logger.info(f"{user} removed reaction {payload.emoji}")
+    await handle_role_assignment(payload, user, database)
 
 
 @bot.command()

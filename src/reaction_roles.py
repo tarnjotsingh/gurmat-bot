@@ -1,12 +1,12 @@
 import logging
-import discord
-
 from typing import Union
-from discord.ext import commands
-from pymongo.database import Database, Collection
-from discord import Message, Reaction, Member, Embed, Role, utils
 
-from utils import user_usage_log
+import discord
+from discord import Message, Member, Embed, Role, RawReactionActionEvent, utils
+from discord.ext import commands
+from pymongo.database import Database
+
+from utils import user_usage_log, BOT_ID
 
 # Stores key value pairs of channel_id:discord.Message
 react_msgs = {}
@@ -64,6 +64,8 @@ class ReactionRoles(commands.Cog):
             }
         )
 
+        await ctx.message.add_reaction('🙏🏼')
+
     # Helper functions
 
     async def track_message(self, message: Message):
@@ -85,20 +87,17 @@ class ReactionRoles(commands.Cog):
         return embed
 
 
-async def handle_role_assignment(reaction: Reaction, user: Member, database: Database):
-    # Check that the message reacted to is the same one saved as a member value
-    channel_id = reaction.message.channel.id
-    if channel_id in react_msgs and not user.id == 745385175856316556:
+async def handle_role_assignment(payload: RawReactionActionEvent, user: Member, database: Database):
+    channel_id = payload.channel_id
+    if channel_id in react_msgs and not payload.user_id == BOT_ID:
         # Query database to get role associated with the given reaction
-        r_obj = database.reaction_roles.find_one({'guild_id': reaction.message.guild.id, 'reaction': reaction.emoji})
+        r_obj = database.reaction_roles.find_one({'guild_id': payload.guild_id, 'reaction': payload.emoji.name})
         role: Role = discord.utils.get(user.guild.roles, id=r_obj['role_id'])
-        await user.add_roles(role)
 
+        switch = {
+            'REACTION_ADD': lambda: user.add_roles(role),
+            'REACTION_REMOVE': lambda: user.remove_roles(role)
+        }
 
-async def handle_role_unassignment(reaction: Reaction, user: Member, database: Database):
-    channel_id = reaction.message.channel.id
-    if channel_id in react_msgs and not user.id == 745385175856316556:
-        # Query database to get role associated with the given reaction
-        r_obj = database.reaction_roles.find_one({'guild_id': reaction.message.guild.id, 'reaction': reaction.emoji})
-        role: Role = discord.utils.get(user.guild.roles, id=r_obj['role_id'])
-        await user.remove_roles(role)
+        action = switch.get(payload.event_type)
+        await action()
