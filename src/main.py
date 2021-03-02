@@ -1,11 +1,12 @@
 import os
 import logging
 import discord
+from discord import Message, Reaction, Member
 from discord.ext import commands
 from dotenv import load_dotenv
 from pymongo import MongoClient, errors
 from radio import Radio
-from reaction_roles import ReactionRoles
+from reaction_roles import ReactionRoles, handle_role_assignment, handle_role_unassignment
 from utils import message_handler, user_usage_log
 
 # Load environment variables
@@ -29,7 +30,7 @@ try:
     logging.info("Connecting to the database")
 
     client = MongoClient(port=MDB_PORT)
-    client.server_info()               # Will throw timeout exception when connection to database can't be made
+    client.server_info()  # Will throw timeout exception when connection to database can't be made
     database = client.gurmatbot
 except errors.ServerSelectionTimeoutError:
     logger.exception("Failed to connect to the database")
@@ -41,11 +42,25 @@ async def on_ready():
 
 
 @bot.event
-async def on_message(msg: discord.Message):
+async def on_message(msg: Message):
     if msg.content.startswith(bot.command_prefix):
         await bot.process_commands(msg)
     else:
         await message_handler(msg)
+
+
+@bot.event
+async def on_reaction_add(reaction: Reaction, user: Member):
+    # This method will capture reactions then call the relvant code to handle it
+    # In this case, when we get a reaction on a message sent by the bot we add the relevant role to the user.
+    logger.info(f"{user} reacted with {reaction}")
+    await handle_role_assignment(reaction, user, database)
+
+
+@bot.event
+async def on_raw_reaction_remove(reaction: Reaction, user: Member):
+    logger.info(f"{user} removed reaction {reaction}")
+    await handle_role_unassignment(reaction, user, database)
 
 
 @bot.command()

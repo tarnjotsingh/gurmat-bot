@@ -128,11 +128,11 @@ class Radio(commands.Cog):
                 ctx.voice_client.stop()
 
             if self.station.is_youtube:
-                # await self._stream_yt(ctx, self.station.url)
-                self.logger.info(f"Will run youtube link {self.station.url}")
+                self.logger.info(f"Will play youtube link {self.station.url}")
+                await self._stream_yt(ctx, self.station.url)
             else:
-                # await self._stream_url(ctx, self.station.url)
-                self.logger.info(f"Will run url stream from link {self.station.url}")
+                self.logger.info(f"Will play stream from link {self.station.url}")
+                await self._stream_url(ctx, self.station.url)
 
     @radio.command()
     async def stop(self, ctx: commands.Context):
@@ -157,7 +157,7 @@ class Radio(commands.Cog):
             embed = discord.Embed()
             embed.title = "Now Playing"
             embed.colour = 0xffa900
-            embed.description = f"Playing: {self.station.name}[{self.station.started_by.mention}]\nElapsed time: {self.station.get_runtime()}"
+            embed.description = f"{self.station.name}[{self.station.started_by.mention}]\nElapsed time: {self.station.get_runtime()}"
             await ctx.send(embed=embed)
         else:
             await ctx.send(f"{ctx.author.mention} ਵਾਹਿਗੁਰੂ, there isn't anything playing ji")
