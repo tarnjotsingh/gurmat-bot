@@ -13,6 +13,7 @@ youtube-dl = "*"
 asyncio = "*"
 pytest-asyncio = "*"
 pymongo = "*"
+validator-collection = "*"
 
 [requires]
 python_version = "3"

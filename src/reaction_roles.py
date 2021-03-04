@@ -1,6 +1,6 @@
 import logging
 from typing import Union
-
+from validator_collection import checkers
 import discord
 from discord import Message, Member, Embed, Role, RawReactionActionEvent, utils
 from discord.ext import commands
@@ -36,24 +36,49 @@ class ReactionRoles(commands.Cog):
             await self.list(ctx)
 
     @roles.command()
-    async def list(self, ctx: commands.Context):
-        """List all roles in the server"""
+    async def list(self, ctx: commands.Context, group_name: str):
+        """
+        List all roles in the server
 
+        Arguments:
+              group_name: str - The group associated with the reaction roles you want to list
+        """
         # Get all roles (in an iterable) associated with the server the command was called from
         all_roles = ctx.guild.roles
-        db_rr = list(self.db.reaction_roles.find({'guild_id': ctx.guild.id}))
+
+        # Check provided group exists
+        group: Cursor = self.db.reaction_role_groups.find_one({'name': group_name})
+        if not group:
+            await self.send_invalid_group_msg(ctx, group_name)
+            return
+
+        db_rr = list(self.db.reaction_roles.find({'guild_id': ctx.guild.id, 'group_id': group.__getitem__('_id')}))
         mapped = list(map(lambda r: f"{r['reaction']}: {utils.get(all_roles, id=r['role_id']).mention}", db_rr))
         reactions = list(map(lambda r: r['reaction'], db_rr))
+        image_url = group['image_url'] if 'image_url' in group else None
 
         roles_as_string = '\n'.join(mapped)
-        placeholder = self.embed_builder(0xffa900, "Server Roles", roles_as_string)
+        placeholder = self.embed_builder(0xffa900, "Server Roles", roles_as_string, image_url)
 
         message = await ctx.send(embed=placeholder)
 
+        # TODO: Try and look for a faster method if possible
         for r in reactions:
             await message.add_reaction(r)
 
         await self.track_message(message)
+
+    @roles.command()
+    async def groups(self, ctx: commands.Context):
+        # Query database for all groups
+        groups: list = list(self.db.reaction_role_groups.find({'guild_id': ctx.guild.id}))
+        mapped = list(map(lambda g: f"- {g['name']}", groups))
+
+        desc = f"All role groups configured for `{ctx.guild.name}`:\n"
+        groups_as_string = '\n'.join(mapped)
+        embed = self.embed_builder(0xffa900, "Role Groups", desc + groups_as_string, None)
+
+        await ctx.send(embed=embed)
 
     @roles.command()
     async def add(self, ctx: commands.Context, r_type: str, *args: str):
@@ -86,16 +111,41 @@ class ReactionRoles(commands.Cog):
 
         Arguments:
             group_name string: Name of the new group you want to add
+            img_url string: (Optional) Url for an optional image to associate with the group
         """
+        # TODO: Break this function down a bit. Move validators into a separate function. Easier testing that way.
         arg_list = list(args[0])
-        if len(arg_list).__eq__(1):
+
+        # Validate group details
+        if len(arg_list) >= 1:
+            group_name = ''.join(arg_list[0])  # Mandatory
+            group_check = self.db.reaction_role_groups.find_one({'name': group_name})
+            if group_check:
+                await self.send_entry_exists_msg(ctx, "group", group_name)
+                return
+        else:
+            await self.send_invalid_args_msg(ctx)
+            return
+
+        # Default value is None unless provided as an argument where it will go through validation
+        image_url = None
+        if len(arg_list) == 2:
+            url_string = ''.join(arg_list[1])   # Optional
+            if checkers.is_url(url_string):
+                image_url = url_string
+            else:
+                # TODO: Change this to an invalid URL message rather than invalid for clarity
+                await self.send_invalid_args_msg(ctx)
+                return
+
+        # Add group to the database if previous validation succeeded
+        if group_name:
             self.logger.info("Adding new reaction role group")
-            # TODO: Check if the group already exists
-            group_name = ''.join(arg_list[0])
             self.db.reaction_role_groups.insert_one(
                 {
                     'guild_id': ctx.guild.id,
-                    'name': group_name
+                    'name': group_name,
+                    'image_url': image_url
                 }
             )
 
@@ -112,17 +162,21 @@ class ReactionRoles(commands.Cog):
         """
         arg_list = list(args[0])
         if len(arg_list).__eq__(3):
-            self.logger.info("Adding new reaction role")
-            # TODO: Check if the exact same reaction role already exists
-
             # Validate args
             reaction: str = ''.join(arg_list[0])
             role: Role = utils.get(ctx.guild.roles, mention=''.join(arg_list[1]))
             group_name: str = ''.join(arg_list[2])
 
-            # Query db for group name to get group id
+            # Query db for group name to get group id and if a reaction role of the same type exists already
             group: Cursor = self.db.reaction_role_groups.find_one({'name': group_name}, {'_id': 1})
+            rr_check = self.db.reaction_roles.find_one({'reaction': reaction, 'group_id': group.__getitem__('_id')})
+
+            if rr_check:
+                await self.send_entry_exists_msg(ctx, "reaction role", "")
+                return
+
             if group:
+                self.logger.info("Adding new reaction role")
                 self.db.reaction_roles.insert_one(
                     {
                         'guild_id': ctx.guild.id,
@@ -131,14 +185,9 @@ class ReactionRoles(commands.Cog):
                         'reaction': reaction,
                     }
                 )
-
                 await ctx.message.add_reaction('🙏🏼')
             else:
-                embed = self.embed_builder(
-                    0xff0000,
-                    "Invalid group",
-                    f"The group `{group_name}` does not exist")
-                await ctx.send(embed=embed)
+                await self.send_invalid_group_msg(ctx, group_name)
 
     # Helper functions
 
@@ -157,14 +206,33 @@ class ReactionRoles(commands.Cog):
         embed = self.embed_builder(
             0xff0000,
             "Invalid arguments",
-            "Refer to command help by typing `.help roles [sub_command]`")
+            "Refer to command help by typing `.help roles [sub_command]`",
+            None)
         await ctx.send(embed=embed)
 
-    def embed_builder(self, colour, title, desc: str) -> Embed:
+    async def send_invalid_group_msg(self, ctx: commands.Context, group_name: str):
+        embed = self.embed_builder(
+            0xff0000,
+            "Invalid group",
+            f"The group `{group_name}` does not exist",
+            None)
+        await ctx.send(embed=embed)
+
+    async def send_entry_exists_msg(self, ctx: commands.Context, entry_type: str, entry_name: str):
+        embed = self.embed_builder(
+            0xff0000,
+            "Entry already exists",
+            f"The {entry_type.casefold()} `{entry_name}` already exists",
+            None)
+        await ctx.send(embed=embed)
+
+    def embed_builder(self, colour, title, desc: str, img_url) -> Embed:
         embed = discord.Embed()
         embed.colour = colour
         embed.title = title
         embed.description = desc
+        if img_url:
+            embed.set_image(url=img_url)
         return embed
 
 

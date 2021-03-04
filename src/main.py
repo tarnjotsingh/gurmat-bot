@@ -54,6 +54,11 @@ async def on_message(msg: Message):
 
 
 @bot.event
+async def on_command_error(ctx: commands.Context, error: commands.CommandError):
+    logger.info(error)
+
+
+@bot.event
 async def on_raw_reaction_add(payload: RawReactionActionEvent):
     # This method will capture reactions then call the relvant code to handle it
     # In this case, when we get a reaction on a message sent by the bot we add the relevant role to the user.
