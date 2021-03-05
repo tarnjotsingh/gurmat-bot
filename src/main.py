@@ -65,7 +65,7 @@ async def on_raw_reaction_add(payload: RawReactionActionEvent):
     guild: Guild = bot.get_guild(payload.guild_id)
     user: Member = guild.get_member(payload.user_id)
 
-    logger.info(f"{user} reacted with {payload.emoji}")
+    logger.debug(f"{user} reacted with {payload.emoji}")
     await handle_role_assignment(payload, user, database)
 
 
@@ -74,7 +74,7 @@ async def on_raw_reaction_remove(payload: RawReactionActionEvent):
     guild: Guild = bot.get_guild(payload.guild_id)
     user: Member = guild.get_member(payload.user_id)
 
-    logger.info(f"{user} removed reaction {payload.emoji}")
+    logger.debug(f"{user} removed reaction {payload.emoji}")
     await handle_role_assignment(payload, user, database)
 
 

@@ -1,11 +1,12 @@
 import logging
 from typing import Union
-from validator_collection import checkers
+
 import discord
 from discord import Message, Member, Embed, Role, RawReactionActionEvent, utils
 from discord.ext import commands
-from pymongo.database import Database
 from pymongo.collection import Cursor
+from pymongo.database import Database
+from validator_collection import checkers
 
 from utils import user_usage_log, BOT_ID
 
@@ -52,22 +53,24 @@ class ReactionRoles(commands.Cog):
             await self.send_invalid_group_msg(ctx, group_name)
             return
 
-        db_rr = list(self.db.reaction_roles.find({'guild_id': ctx.guild.id, 'group_id': group.__getitem__('_id')}))
+        db_rr = list(self.db.reaction_roles.find({'guild_id': ctx.guild.id, 'group_id': group['_id']}))
         mapped = list(map(lambda r: f"{r['reaction']} - {utils.get(all_roles, id=r['role_id']).name}", db_rr))
         reactions = list(map(lambda r: r['reaction'], db_rr))
         image_url = group['image_url'] if 'image_url' in group else None
 
         roles_as_string = '\n\n'.join(mapped)
-        desc = f"Reaction roles configured with group `{group_name}`\n\n" + roles_as_string
+        desc = f"Reaction roles configured with group `{group_name}`.\n" \
+               f"Each emoji has a server role associated with it. If you would like one of the roles listed you can " \
+               f"click the associated emoji below this message.\n\n"\
+               + roles_as_string
         embed = self.embed_builder(0xffa900, f"{group_name.capitalize()} Roles", desc, image_url)
 
         message = await ctx.send(embed=embed)
 
-        # TODO: Try and look for a faster method if possible
         for r in reactions:
             await message.add_reaction(r)
 
-        await self.track_message(message)
+        await self.track_message(ctx, message, group)
 
     @roles.command()
     async def groups(self, ctx: commands.Context):
@@ -87,8 +90,8 @@ class ReactionRoles(commands.Cog):
         Add a new server role reaction or reaction type
 
         type (str): The type of object we're adding to the database. This can be:
-            - ROLE
             - GROUP
+            - ROLE
         """
         if len(args) < 1:
             await self.send_invalid_args_msg(ctx)
@@ -106,7 +109,7 @@ class ReactionRoles(commands.Cog):
         except TypeError:
             await self.send_invalid_args_msg(ctx)
 
-    async def add_group(self, ctx: commands.Context, *args: str):
+    async def add_group(self, ctx: commands.Context, *args):
         """
         Add a new server reaction role group
 
@@ -114,7 +117,6 @@ class ReactionRoles(commands.Cog):
             group_name string: Name of the new group you want to add
             img_url string: (Optional) Url for an optional image to associate with the group
         """
-        # TODO: Break this function down a bit. Move validators into a separate function. Easier testing that way.
         arg_list = list(args[0])
 
         # Validate group details
@@ -152,7 +154,7 @@ class ReactionRoles(commands.Cog):
 
             await ctx.message.add_reaction('🙏🏼')
 
-    async def add_reaction(self, ctx: commands.Context, *args: str):
+    async def add_reaction(self, ctx: commands.Context, *args):
         """
         Add a new server role reaction
 
@@ -162,7 +164,7 @@ class ReactionRoles(commands.Cog):
             group string: The group you want to assign to the reaction role
         """
         arg_list = list(args[0])
-        if len(arg_list).__eq__(3):
+        if len(arg_list) == 3:
             # Validate args
             reaction: str = ''.join(arg_list[0])
             role: Role = utils.get(ctx.guild.roles, mention=''.join(arg_list[1]))
@@ -170,7 +172,7 @@ class ReactionRoles(commands.Cog):
 
             # Query db for group name to get group id and if a reaction role of the same type exists already
             group: Cursor = self.db.reaction_role_groups.find_one({'name': group_name}, {'_id': 1})
-            rr_check = self.db.reaction_roles.find_one({'reaction': reaction, 'group_id': group.__getitem__('_id')})
+            rr_check = self.db.reaction_roles.find_one({'reaction': reaction, 'group_id': group['_id']})
 
             if rr_check:
                 await self.send_entry_exists_msg(ctx, "reaction role", "")
@@ -181,7 +183,7 @@ class ReactionRoles(commands.Cog):
                 self.db.reaction_roles.insert_one(
                     {
                         'guild_id': ctx.guild.id,
-                        'group_id': group.__getitem__('_id'),
+                        'group_id': group['_id'],
                         'role_id': role.id,
                         'reaction': reaction,
                     }
@@ -192,16 +194,18 @@ class ReactionRoles(commands.Cog):
 
     # Helper functions
 
-    async def track_message(self, message: Message):
+    async def track_message(self, ctx: commands.Context, message: Message, group: Cursor):
         channel_id = message.channel.id
-
-        # Track message by the channel it's in
-        if channel_id in react_msgs:
-            # Delete previous message so it can't be reacted to
-            await react_msgs[channel_id].delete()
-            react_msgs[channel_id] = message
+        # Check if message in the same channel and group_id is already tracked
+        msg_cursor = self.db.messages.find_one({'channel_id': channel_id, 'group_id': group['_id']})
+        if msg_cursor:
+            old_msg = await ctx.fetch_message(id=msg_cursor['_id'])
+            await old_msg.delete()
+            self.db.messages.delete_one({'_id': msg_cursor['_id']})
+            self.db.messages.insert_one({'_id': message.id, 'channel_id': channel_id, 'group_id': group['_id']})
         else:
-            react_msgs[channel_id] = message
+            # Add msg to db for tracking
+            self.db.messages.insert_one({'_id': message.id, 'channel_id': channel_id, 'group_id': group['_id']})
 
     async def send_invalid_args_msg(self, ctx: commands.Context):
         embed = self.embed_builder(
@@ -227,7 +231,7 @@ class ReactionRoles(commands.Cog):
             None)
         await ctx.send(embed=embed)
 
-    def embed_builder(self, colour, title, desc: str, img_url) -> Embed:
+    def embed_builder(self, colour, title, desc, img_url) -> Embed:
         embed = discord.Embed()
         embed.colour = colour
         embed.title = title
@@ -238,10 +242,12 @@ class ReactionRoles(commands.Cog):
 
 
 async def handle_role_assignment(payload: RawReactionActionEvent, user: Member, database: Database):
-    channel_id = payload.channel_id
-    if channel_id in react_msgs and not payload.user_id == BOT_ID:
+    # Try and load Cursor object from messages collection that has the exact _id and channel_id pair
+    msg_cursor = database.messages.find_one({'_id': payload.message_id, 'channel_id': payload.channel_id})
+    emoji_name = str(payload.emoji) if payload.emoji.is_custom_emoji() else payload.emoji.name
+    if msg_cursor and not payload.user_id == BOT_ID:
         # Query database to get role associated with the given reaction
-        r_obj = database.reaction_roles.find_one({'guild_id': payload.guild_id, 'reaction': payload.emoji.name})
+        r_obj = database.reaction_roles.find_one({'guild_id': payload.guild_id, 'reaction': emoji_name})
         role: Role = discord.utils.get(user.guild.roles, id=r_obj['role_id'])
 
         switch = {

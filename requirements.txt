@@ -5,3 +5,4 @@ youtube-dl
 asyncio
 pytest-asyncio
 pymongo
+validator-collection
