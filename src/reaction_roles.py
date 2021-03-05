@@ -47,20 +47,21 @@ class ReactionRoles(commands.Cog):
         all_roles = ctx.guild.roles
 
         # Check provided group exists
-        group: Cursor = self.db.reaction_role_groups.find_one({'name': group_name})
+        group: Cursor = self.db.reaction_role_groups.find_one({'name': group_name.lower()})
         if not group:
             await self.send_invalid_group_msg(ctx, group_name)
             return
 
         db_rr = list(self.db.reaction_roles.find({'guild_id': ctx.guild.id, 'group_id': group.__getitem__('_id')}))
-        mapped = list(map(lambda r: f"{r['reaction']}: {utils.get(all_roles, id=r['role_id']).mention}", db_rr))
+        mapped = list(map(lambda r: f"{r['reaction']} - {utils.get(all_roles, id=r['role_id']).name}", db_rr))
         reactions = list(map(lambda r: r['reaction'], db_rr))
         image_url = group['image_url'] if 'image_url' in group else None
 
-        roles_as_string = '\n'.join(mapped)
-        placeholder = self.embed_builder(0xffa900, "Server Roles", roles_as_string, image_url)
+        roles_as_string = '\n\n'.join(mapped)
+        desc = f"Reaction roles configured with group `{group_name}`\n\n" + roles_as_string
+        embed = self.embed_builder(0xffa900, f"{group_name.capitalize()} Roles", desc, image_url)
 
-        message = await ctx.send(embed=placeholder)
+        message = await ctx.send(embed=embed)
 
         # TODO: Try and look for a faster method if possible
         for r in reactions:
@@ -72,9 +73,9 @@ class ReactionRoles(commands.Cog):
     async def groups(self, ctx: commands.Context):
         # Query database for all groups
         groups: list = list(self.db.reaction_role_groups.find({'guild_id': ctx.guild.id}))
-        mapped = list(map(lambda g: f"- {g['name']}", groups))
+        mapped = list(map(lambda g: f"- {g['name'].capitalize()}", groups))
 
-        desc = f"All role groups configured for `{ctx.guild.name}`:\n"
+        desc = f"All role groups configured for `{ctx.guild.name}`:\n\n"
         groups_as_string = '\n'.join(mapped)
         embed = self.embed_builder(0xffa900, "Role Groups", desc + groups_as_string, None)
 
