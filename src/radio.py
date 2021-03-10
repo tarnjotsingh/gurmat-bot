@@ -2,9 +2,12 @@ import logging
 import discord
 import asyncio
 import youtube_dl
+
 from typing import Union
-from station import Station, links
 from discord.ext import commands
+from pymongo.database import Database, Collection
+
+from station import Station
 from utils import user_usage_log
 
 # Suppress noise about console usage from errors
@@ -21,7 +24,7 @@ ytdl_format_options = {
     'quiet': True,
     'no_warnings': True,
     'default_search': 'auto',
-    'source_address': '0.0.0.0' # bind to ipv4 since ipv6 addresses cause issues sometimes
+    'source_address': '0.0.0.0'  # bind to ipv4 since ipv6 addresses cause issues sometimes
 }
 
 ffmpeg_options = {
@@ -55,17 +58,23 @@ class YTDLSource(discord.PCMVolumeTransformer):
 
 class Radio(commands.Cog):
     # Radio will have a station which can be set up accordingly since they all use the station object
-    def __init__(self, bot: commands.Bot):
+    def __init__(self, bot: commands.Bot, db: Database):
         self.station: Station = None
-        self.logger = logging.getLogger("Radio")
+        self.bot: commands.Bot = bot
+        self.db: Database = db
+        self.stations: Collection = db.stations
+
+        self.logger: logging.Logger = logging.getLogger("Radio")
         self.logger.setLevel(logging.INFO)
-        self.bot = bot
+
+        # Log stations available from database
+        # self.logger.info(list(self.stations.find()))
 
     def logging(self, log_lvl: Union[int, str]):
         self.logger.setLevel(log_lvl)
         return self
 
-    @commands.group(aliases=['r', 'rad'])
+    @commands.group(aliases=['rad'])
     async def radio(self, ctx: commands.Context):
         """Controls the playback of Kirtan radio stations"""
         self.logger.info(f"Invoked subcommand: {ctx.invoked_subcommand}")
@@ -95,9 +104,9 @@ class Radio(commands.Cog):
             self.station = None
         else:
             await ctx.send(f"{ctx.author.mention} ਵਾਹਿਗੁਰੂ, I'm not in a voice channel")
-    
+
     @radio.command()
-    async def play(self, ctx: commands.Context, stream_alias: str = "247kirtan"):
+    async def play(self, ctx: commands.Context, station_name: str = "247"):
         """Start playing one of the predefined Kirtan radio stations"""
 
         self.logger.info(user_usage_log(ctx))
@@ -108,17 +117,21 @@ class Radio(commands.Cog):
             await self.join(ctx)
 
         # Set the station object
-        if self.station and self.station.stream_alias.__eq__(stream_alias):
+        if self.station and self.station.name.__eq__(station_name):
             await ctx.send(f"{ctx.author.mention} ਵਾਹਿਗੁਰੂ, the selected station is already playing ji")
         else:
-            self.station = Station(stream_alias, ctx.author)
+            # Query database to get station url
+            station_link_db: Collection = self.stations.find_one({'name': station_name}, {'link': 1})
+            self.station = Station(station_name, station_link_db['link'], ctx.author)
             # Restart/Start the stream based on if something is already playing
             if ctx.voice_client.is_playing():
                 ctx.voice_client.stop()
 
             if self.station.is_youtube:
+                self.logger.info(f"Will play youtube link {self.station.url}")
                 await self._stream_yt(ctx, self.station.url)
             else:
+                self.logger.info(f"Will play stream from link {self.station.url}")
                 await self._stream_url(ctx, self.station.url)
 
     @radio.command()
@@ -133,7 +146,7 @@ class Radio(commands.Cog):
             self.station = None
         else:
             await ctx.send(f"{ctx.author.mention} ਵਾਹਿਗੁਰੂ, there isn't anything playing ji")
-    
+
     @radio.command()
     async def np(self, ctx: commands.Context):
         """Displays information about the current station being played"""
@@ -142,12 +155,12 @@ class Radio(commands.Cog):
 
         if ctx.voice_client and self.station:
             embed = discord.Embed()
+            embed.title = "Now Playing"
             embed.colour = 0xffa900
-            embed.description = f"Playing: {self.station.stream_alias}[{self.station.started_by.mention}]\nElapsed time: {self.station.get_runtime()}"
+            embed.description = f"{self.station.name}[{self.station.started_by.mention}]\nElapsed time: {self.station.get_runtime()}"
             await ctx.send(embed=embed)
         else:
             await ctx.send(f"{ctx.author.mention} ਵਾਹਿਗੁਰੂ, there isn't anything playing ji")
-
 
     @radio.command()
     async def stations(self, ctx: commands.Context):
@@ -155,21 +168,23 @@ class Radio(commands.Cog):
 
         self.logger.info(user_usage_log(ctx))
 
-        station_display_list = ""
         embed = discord.Embed()
         embed.title = "Available stations"
 
-        if(links):
-            for s in links:
-                station_display_list += f"- {s}:\t{links[s]}\n"
+        # Replace links with database stuff
+        stations_list = list(self.stations.find())
+        # Want to use map to convert each of the dics in the list into a string
+        station_strings = list(map(lambda stn: f"- {stn['name']}:\t\t{stn['link']}", stations_list))
+
+        if station_strings:
+            description = '\n'.join(station_strings)
             embed.colour = 0xffa900
         else:
-            station_display_list = "No stations available"
-            embed.color =  0x8B0000
+            description = "No stations available"
+            embed.color = 0x8B0000
 
-        embed.description = station_display_list
+        embed.description = description
         await ctx.send(embed=embed)
-
 
     async def _stream_yt(self, ctx: commands.Context, url: str):
         """Streams from a youtube url"""

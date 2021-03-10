@@ -1,13 +1,30 @@
 version:  '3.5'
 
 services:
+  mongodb:
+    image: mongo:latest
+    volumes:
+      - mongodb_data:/data/db:rw
+    ports:
+      - 27017:27017
+    networks:
+      - shared_network
 
   gurmat-bot:
     image: gurmat-bot:1
-    build: './'
-    container_name: 'gurmat-bot'
+    depends_on:
+      - mongodb
+    build: ./
     labels:
-      description: 'Gurmat Bot for Sikh Discord'
+      description: Gurmat Bot for Sikh Discord
     volumes:
-      - "./src:/gurmat-bot/src:Z"
-    entrypoint: "python src/main.py"
+      - ./src:/gurmat-bot/src:Z
+    networks:
+      - shared_network
+    entrypoint: python src/main.py
+
+volumes:
+  mongodb_data:
+
+networks:
+  shared_network:
