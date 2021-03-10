@@ -14,6 +14,7 @@ from utils import message_handler, user_usage_log
 # Load environment variables
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
+MDB_HOST = os.getenv('MONGODB_HOST')
 MDB_PORT = int(os.getenv('MONGODB_PORT'))
 LOG_LEVEL = logging.getLevelName(os.getenv('LOG_LEVEL'))
 
@@ -21,7 +22,7 @@ LOG_LEVEL = logging.getLevelName(os.getenv('LOG_LEVEL'))
 logging.basicConfig(level=LOG_LEVEL)
 logger = logging.getLogger("bot_main")
 logger.setLevel(LOG_LEVEL)
-logger.info(f"Logging set to: {LOG_LEVEL}")
+logger.info(f"Logging set to: {os.getenv('LOG_LEVEL')}")
 
 # Initialise discord bot and connection to database
 intents = discord.Intents.default()
@@ -31,13 +32,14 @@ database = None
 
 try:
     # Attempt to establish a connection with the local mongodb server
-    logging.info("Connecting to the database")
+    logging.info(f"Connecting to the database at: {MDB_HOST}")
 
-    client = MongoClient(port=MDB_PORT)
+    client = MongoClient(MDB_HOST, port=MDB_PORT)
     client.server_info()  # Will throw timeout exception when connection to database can't be made
     database = client.gurmatbot
 except errors.ServerSelectionTimeoutError:
     logger.exception("Failed to connect to the database")
+    exit(1)
 
 
 @bot.event
