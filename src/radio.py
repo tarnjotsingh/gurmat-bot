@@ -198,4 +198,4 @@ class Radio(commands.Cog):
         """Streams from the provided url"""
 
         async with ctx.typing():
-            ctx.voice_client.play(source=discord.FFmpegPCMAudio(self.station.url))
+            ctx.voice_client.play(source=discord.FFmpegPCMAudio(self.station.url, **ffmpeg_options))
