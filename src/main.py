@@ -9,6 +9,7 @@ from pymongo import MongoClient, errors
 
 from radio import Radio
 from reaction_roles import ReactionRoles, handle_role_assignment
+from jaap_counter import JaapCounters
 from utils import message_handler, user_usage_log
 
 # Load environment variables
@@ -92,4 +93,5 @@ async def ping(ctx: commands.Context):
 # Initialise relevant classes and have them added as cogs to the main bot object
 bot.add_cog(Radio(bot, database).logging(LOG_LEVEL))
 bot.add_cog(ReactionRoles(bot, database).logging(LOG_LEVEL))
+bot.add_cog(JaapCounters(bot, database).logging(LOG_LEVEL))
 bot.run(TOKEN)

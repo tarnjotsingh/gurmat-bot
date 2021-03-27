@@ -6,3 +6,4 @@ asyncio
 pytest-asyncio
 pymongo
 validator-collection
+requests
