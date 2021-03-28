@@ -2,16 +2,13 @@ import logging
 from typing import Union
 
 import discord
-from discord import Message, Member, Embed, Role, RawReactionActionEvent, utils
+from discord import Message, Member, Role, RawReactionActionEvent, utils
 from discord.ext import commands
 from pymongo.collection import Cursor
 from pymongo.database import Database
 from validator_collection import checkers
 
-from utils import user_usage_log, BOT_ID
-
-# Stores key value pairs of channel_id:discord.Message
-react_msgs = {}
+from utils import user_usage_log, embed_builder, BOT_ID
 
 
 class ReactionRoles(commands.Cog):
@@ -63,7 +60,7 @@ class ReactionRoles(commands.Cog):
                f"Each emoji has a server role associated with it. If you would like one of the roles listed you can " \
                f"click the associated emoji below this message.\n\n"\
                + roles_as_string
-        embed = self.embed_builder(0xffa900, f"{group_name.capitalize()} Roles", desc, image_url)
+        embed = embed_builder(0xffa900, f"{group_name.capitalize()} Roles", desc, image_url)
 
         message = await ctx.send(embed=embed)
 
@@ -80,7 +77,7 @@ class ReactionRoles(commands.Cog):
 
         desc = f"All role groups configured for `{ctx.guild.name}`:\n\n"
         groups_as_string = '\n'.join(mapped)
-        embed = self.embed_builder(0xffa900, "Role Groups", desc + groups_as_string, None)
+        embed = embed_builder(0xffa900, "Role Groups", desc + groups_as_string, None)
 
         await ctx.send(embed=embed)
 
@@ -208,7 +205,7 @@ class ReactionRoles(commands.Cog):
             self.db.messages.insert_one({'_id': message.id, 'channel_id': channel_id, 'group_id': group['_id']})
 
     async def send_invalid_args_msg(self, ctx: commands.Context):
-        embed = self.embed_builder(
+        embed = embed_builder(
             0xff0000,
             "Invalid arguments",
             "Refer to command help by typing `.help roles [sub_command]`",
@@ -216,7 +213,7 @@ class ReactionRoles(commands.Cog):
         await ctx.send(embed=embed)
 
     async def send_invalid_group_msg(self, ctx: commands.Context, group_name: str):
-        embed = self.embed_builder(
+        embed = embed_builder(
             0xff0000,
             "Invalid group",
             f"The group `{group_name}` does not exist",
@@ -224,21 +221,12 @@ class ReactionRoles(commands.Cog):
         await ctx.send(embed=embed)
 
     async def send_entry_exists_msg(self, ctx: commands.Context, entry_type: str, entry_name: str):
-        embed = self.embed_builder(
+        embed = embed_builder(
             0xff0000,
             "Entry already exists",
             f"The {entry_type.casefold()} `{entry_name}` already exists",
             None)
         await ctx.send(embed=embed)
-
-    def embed_builder(self, colour, title, desc, img_url) -> Embed:
-        embed = discord.Embed()
-        embed.colour = colour
-        embed.title = title
-        embed.description = desc
-        if img_url:
-            embed.set_image(url=img_url)
-        return embed
 
 
 async def handle_role_assignment(payload: RawReactionActionEvent, user: Member, database: Database):

@@ -1,0 +1,83 @@
+openapi: 3.0.1
+info:
+  title: Jaap Counter
+  version: 1.0.0
+servers:
+- url: https://api.manjotsingh.xyz/
+tags:
+- name: jaapcounters
+  description: Retrieve and submit jaap counters
+paths:
+  /jaapcounters:
+    get:
+      tags:
+      - jaapcounters
+      summary: Get existing jaap counter
+      operationId: getCounterByName
+      parameters:
+      - name: formname
+        in: query
+        required: true
+        schema:
+          type: string
+      responses:
+        200:
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Rows'
+  /submitjaapcounters:
+    post:
+      tags:
+      - jaapcounters
+      summary: Submit new jaap counter
+      operationId: submitNewCounter
+      parameters:
+      - name: formname
+        in: query
+        required: true
+        schema:
+          type: string
+      - name: number
+        in: query
+        required: true
+        schema:
+          type: number
+      responses:
+        200:
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+components:
+  schemas:
+    Rows:
+      type: object
+      properties:
+        rows:
+          type: array
+          items:
+            $ref: '#/components/schemas/Counter'
+    Counter:
+      type: object
+      properties:
+        formname:
+          type: string
+        jaaps:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        lastmod:
+          type: string
+          format: date-time
+    Result:
+      type: object
+      properties:
+        result:
+          type: string
+        row:
+          type: number
