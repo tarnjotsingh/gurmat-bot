@@ -1,12 +1,16 @@
 openapi: 3.0.1
+
 info:
   title: Jaap Counter
   version: 1.0.0
+
 servers:
 - url: https://api.manjotsingh.xyz/
+
 tags:
 - name: jaapcounters
   description: Retrieve and submit jaap counters
+
 paths:
   /jaapcounters:
     get:
@@ -27,6 +31,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Rows'
+
   /submitjaapcounters:
     post:
       tags:
@@ -44,6 +49,16 @@ paths:
         required: true
         schema:
           type: number
+      - name: title
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: description
+        in: query
+        required: false
+        schema:
+          type: string
       responses:
         200:
           description: successful operation
@@ -51,6 +66,27 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Result'
+
+  /submitjaapdeets:
+    put:
+      tags:
+      - jaapcounters
+      summary: Update jaap counter fields
+      operationId: updateJaapDetails
+      parameters:
+        - name: jaapDetails
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/JaapDetails'
+      responses:
+        200:
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpdatedRows'
+
 components:
   schemas:
     Rows:
@@ -60,6 +96,7 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Counter'
+
     Counter:
       type: object
       properties:
@@ -74,10 +111,37 @@ components:
         lastmod:
           type: string
           format: date-time
+        goal:
+          type: string
+
+
+    JaapDetails:
+      type: object
+      properties:
+        condition:
+          type: object
+          properties:
+            formname:
+              type: string
+        set:
+          properties:
+            title:
+              type: string
+            description:
+              type: string
+            goal:
+              type: number
+
     Result:
       type: object
       properties:
         result:
           type: string
         row:
+          type: number
+
+    UpdatedRows:
+      type: object
+      properties:
+        totalUpdatedRows:
           type: number

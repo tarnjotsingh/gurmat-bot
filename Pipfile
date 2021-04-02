@@ -16,6 +16,7 @@ pymongo = "*"
 validator-collection = "*"
 requests = "*"
 swagger-codegen = "*"
+pillow = "*"
 
 [requires]
 python_version = "3"
