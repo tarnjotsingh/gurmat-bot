@@ -54,7 +54,7 @@ class ReactionRoles(commands.Cog):
             return
 
         db_rr = list(self.db.reaction_roles.find({'guild_id': ctx.guild.id, 'group_id': group['_id']}))
-        mapped = list(map(lambda r: f"{r['reaction']} - {utils.get(all_roles, id=r['role_id']).name}", db_rr))
+        mapped = list(map(lambda r: self.reaction_role_display_string(r, all_roles), db_rr))
         reactions = list(map(lambda r: r['reaction'], db_rr))
         image_url = group['image_url'] if 'image_url' in group else None
 
@@ -72,8 +72,16 @@ class ReactionRoles(commands.Cog):
 
         await self.track_message(ctx, message, group)
 
+    @staticmethod
+    def reaction_role_display_string(r, all_roles):
+        role = utils.get(all_roles, id=r['role_id'])
+        return f"{r['reaction']} - {'!!ROLE DOES NOT EXIST!!' if not role else role.name}"
+
     @roles.command()
     async def groups(self, ctx: commands.Context):
+        """
+        List all groups configured for the current server
+        """
         # Query database for all groups
         groups: list = list(self.db.reaction_role_groups.find({'guild_id': ctx.guild.id}))
         mapped = list(map(lambda g: f"- {g['name'].capitalize()}", groups))
@@ -100,6 +108,31 @@ class ReactionRoles(commands.Cog):
         switch = {
             'GROUP': lambda: self.add_group(ctx, args),
             'ROLE': lambda: self.add_reaction(ctx, args)
+        }
+
+        # Wrap in try/except to handle case where bad r_type is given
+        try:
+            command = switch.get(r_type.upper())
+            await command()
+        except TypeError:
+            await self.send_invalid_args_msg(ctx)
+
+    @roles.command()
+    async def remove(self, ctx: commands.Context, r_type: str, *args: str):
+        """
+        Remove an existing server role reaction or reaction type
+
+        type (str): The type of object that we want to remove from the database. This can be:
+            - GROUP
+            - ROLE
+        """
+        if len(args) < 1:
+            await self.send_invalid_args_msg(ctx)
+            return
+
+        switch = {
+            'GROUP': lambda: self.remove_group(ctx, args),
+            'ROLE': lambda: self.remove_reaction(ctx, args)
         }
 
         # Wrap in try/except to handle case where bad r_type is given
@@ -191,19 +224,78 @@ class ReactionRoles(commands.Cog):
                 await ctx.message.add_reaction('🙏🏼')
             else:
                 await self.send_invalid_group_msg(ctx, group_name)
+        else:
+            await self.send_invalid_args_msg(ctx)
+
+    async def remove_group(self, ctx: commands.Context, *args):
+        """
+        Remove an existing server reaction role group
+
+        This command also removes all roles configured under the given group, so you need to be sure that you
+        REALLY want to remove the group.
+
+        Arguments:
+            group_name string: Name of the new group you want to remove
+        """
+        arg_list = list(args[0])
+        # Validate group details
+        if len(arg_list) == 1:
+            group_name = ''.join(arg_list[0])  # Mandatory
+            group_check = self.db.reaction_role_groups.find_one({'name': group_name})
+            if group_check:
+                # If group exists, we need to remove it, but we also should check if there are roles
+                # associated with the group
+                group_rr = list(self.db.reaction_roles.find({'group_id': group_check['_id']}))
+                # Remove all existing roles under the group
+                for reaction in group_rr:
+                    await self.remove_reaction(ctx, (reaction['reaction'], group_name))
+                # Remove group after all associated roles have been removed
+                self.db.reaction_role_groups.remove({'_id': group_check['_id']})
+                await self.track_message(ctx, None, group_check)
+                await ctx.message.add_reaction('🙏🏼')
+        else:
+            await self.send_invalid_args_msg(ctx)
+
+    async def remove_reaction(self, ctx: commands.Context, *args):
+        """
+       Remove an existing server reaction role
+
+        Arguments:
+            reaction string: String value of the reaction
+            group string: The group the existing reaction role is assigned to
+        """
+        arg_list = list(args[0])
+        if len(arg_list) == 2:
+            # Validate args
+            reaction: str = ''.join(arg_list[0])
+            group_name: str = ''.join(arg_list[1])
+
+            # Query database for an existing reaction role with the given reaction and group_name
+            group: Cursor = self.db.reaction_role_groups.find_one({'name': group_name}, {'_id': 1})
+            rr_check = self.db.reaction_roles.find_one({'reaction': reaction, 'group_id': group['_id']})
+
+            if rr_check:
+                # Reaction role exists, we will attempt to remove it
+                self.db.reaction_roles.remove({'_id': rr_check['_id']})
+                await ctx.message.add_reaction('🙏🏼')
+            else:
+                await self.send_invalid_reaction_msg(ctx, reaction, group_name)
+        else:
+            await self.send_invalid_args_msg(ctx)
 
     # Helper functions
 
     async def track_message(self, ctx: commands.Context, message: Message, group: Cursor):
-        channel_id = message.channel.id
+        channel_id = ctx.message.channel.id
         # Check if message in the same channel and group_id is already tracked
         msg_cursor = self.db.messages.find_one({'channel_id': channel_id, 'group_id': group['_id']})
         if msg_cursor:
             old_msg = await ctx.fetch_message(id=msg_cursor['_id'])
             await old_msg.delete()
             self.db.messages.delete_one({'_id': msg_cursor['_id']})
-            self.db.messages.insert_one({'_id': message.id, 'channel_id': channel_id, 'group_id': group['_id']})
-        else:
+            if message:
+                self.db.messages.insert_one({'_id': message.id, 'channel_id': channel_id, 'group_id': group['_id']})
+        elif message:
             # Add msg to db for tracking
             self.db.messages.insert_one({'_id': message.id, 'channel_id': channel_id, 'group_id': group['_id']})
 
@@ -220,6 +312,14 @@ class ReactionRoles(commands.Cog):
             0xff0000,
             "Invalid group",
             f"The group `{group_name}` does not exist",
+            None)
+        await ctx.send(embed=embed)
+
+    async def send_invalid_reaction_msg(self, ctx: commands.Context, reaction: str, group_name: str):
+        embed = self.embed_builder(
+            0xff0000,
+            "Invalid reaction",
+            f"The reaction `{reaction}` has not been configured in the `{group_name}` group",
             None)
         await ctx.send(embed=embed)
 
