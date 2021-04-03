@@ -89,7 +89,7 @@ class ReactionRoles(commands.Cog):
 
         await ctx.send(embed=embed)
 
-    @roles.command(aliases=['a'])
+    @roles.command()
     async def add(self, ctx: commands.Context, r_type: str, *args: str):
         """
         Add a new server role reaction or reaction type
