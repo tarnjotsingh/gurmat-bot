@@ -79,6 +79,9 @@ class ReactionRoles(commands.Cog):
 
     @roles.command()
     async def groups(self, ctx: commands.Context):
+        """
+        List all groups configured for the current server
+        """
         # Query database for all groups
         groups: list = list(self.db.reaction_role_groups.find({'guild_id': ctx.guild.id}))
         mapped = list(map(lambda g: f"- {g['name'].capitalize()}", groups))
@@ -225,6 +228,15 @@ class ReactionRoles(commands.Cog):
             await self.send_invalid_args_msg(ctx)
 
     async def remove_group(self, ctx: commands.Context, *args):
+        """
+        Remove an existing server reaction role group
+
+        This command also removes all roles configured under the given group, so you need to be sure that you
+        REALLY want to remove the group.
+
+        Arguments:
+            group_name string: Name of the new group you want to remove
+        """
         arg_list = list(args[0])
         # Validate group details
         if len(arg_list) == 1:
