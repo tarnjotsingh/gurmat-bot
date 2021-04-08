@@ -48,7 +48,7 @@ class ReactionRoles(commands.Cog):
         all_roles = ctx.guild.roles
 
         # Check provided group exists
-        group: Cursor = self.db.reaction_role_groups.find_one({'name': group_name.lower()})
+        group: Cursor = self.db.reaction_role_groups.find_one({'name': group_name.lower(), 'guild_id': ctx.guild.id})
         if not group:
             await self.send_invalid_group_msg(ctx, group_name)
             return
