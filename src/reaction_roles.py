@@ -155,7 +155,7 @@ class ReactionRoles(commands.Cog):
         # Validate group details
         if len(arg_list) >= 1:
             group_name = ''.join(arg_list[0])  # Mandatory
-            group_check = self.db.reaction_role_groups.find_one({'name': group_name})
+            group_check = self.db.reaction_role_groups.find_one({'name': group_name, 'guild_id': ctx.guild.id})
             if group_check:
                 await self.send_entry_exists_msg(ctx, "group", group_name)
                 return
