@@ -241,7 +241,7 @@ class ReactionRoles(commands.Cog):
         # Validate group details
         if len(arg_list) == 1:
             group_name = ''.join(arg_list[0])  # Mandatory
-            group_check = self.db.reaction_role_groups.find_one({'name': group_name})
+            group_check = self.db.reaction_role_groups.find_one({'name': group_name, 'guild_id': ctx.guild.id})
             if group_check:
                 # If group exists, we need to remove it, but we also should check if there are roles
                 # associated with the group
@@ -271,7 +271,7 @@ class ReactionRoles(commands.Cog):
             group_name: str = ''.join(arg_list[1])
 
             # Query database for an existing reaction role with the given reaction and group_name
-            group: Cursor = self.db.reaction_role_groups.find_one({'name': group_name}, {'_id': 1})
+            group: Cursor = self.db.reaction_role_groups.find_one({'name': group_name, 'guild_id': ctx.guild.id})
             rr_check = self.db.reaction_roles.find_one({'reaction': reaction, 'group_id': group['_id']})
 
             if rr_check:
