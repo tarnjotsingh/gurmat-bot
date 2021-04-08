@@ -204,7 +204,7 @@ class ReactionRoles(commands.Cog):
             group_name: str = ''.join(arg_list[2])
 
             # Query db for group name to get group id and if a reaction role of the same type exists already
-            group: Cursor = self.db.reaction_role_groups.find_one({'name': group_name}, {'_id': 1})
+            group: Cursor = self.db.reaction_role_groups.find_one({'name': group_name, 'guild_id': ctx.guild.id})
             rr_check = self.db.reaction_roles.find_one({'reaction': reaction, 'group_id': group['_id']})
 
             if rr_check:
