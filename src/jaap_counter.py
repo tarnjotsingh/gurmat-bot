@@ -58,8 +58,7 @@ class JaapCounters(commands.Cog):
         title = "Paath Counter"
         field_title = counter.title if counter.title else "No title available"
         embed = embed_builder(None, title, counter.description,
-                              "https://cdn.discordapp.com/attachments/749767325317857290/825842078700929054/"
-                              "Screenshot_from_2021-03-28_22-21-13.png")
+                              "https://cdn.discordapp.com/attachments/825869095521222716/827946625938358294/style1.png")
 
         progress = (float(counter.jaaps)/500) * 100
 
