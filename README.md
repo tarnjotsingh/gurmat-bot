@@ -1,3 +1,3 @@
-# live-kirtan-bot
+# Gurmat Bot for Discord
 
-Just a private repository for storing code for a private discord bot that will play live kirtan 24/7 in the /r/Sikh discord channel.
+A Discord bot that has been created for the use in the Sikh Discord channel (join here: https://discord.gg/mWHEnaezqg)
