@@ -18,9 +18,9 @@ vaheguru_key_words = [
 ]
 
 
-def user_usage_log(ctx) -> str:
+def user_usage_log(ctx: discord.ApplicationContext) -> str:
     # Use discords context object to build the string
-    return f"{ctx.author} used the {ctx.command} command in the {ctx.message.channel} channel"
+    return f"{ctx.author} used the {ctx.command} command in the {ctx.channel} channel"
 
 
 def vaheguru_check(message: str) -> bool:

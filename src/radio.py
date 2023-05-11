@@ -75,7 +75,7 @@ class Radio(commands.Cog):
         self.logger.setLevel(log_lvl)
         return self
 
-    @commands.group(aliases=['rad'])
+    @commands.hybrid_group(aliases=['rad'])
     async def radio(self, ctx: commands.Context):
         """Controls the playback of Kirtan radio stations"""
         self.logger.info(f"Invoked subcommand: {ctx.invoked_subcommand}")
