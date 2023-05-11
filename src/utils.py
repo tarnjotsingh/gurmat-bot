@@ -23,6 +23,7 @@ def user_usage_log(ctx: discord.ApplicationContext) -> str:
     return f"{ctx.author} used the {ctx.command} command in the {ctx.channel} channel"
 
 
+# TODO: Lets change this so that a single vaheguru command returns a random value from the list instead
 def vaheguru_check(message: str) -> bool:
     """Check if one of the key words exist in the provided message string"""
     # I want to linearly scan through the entire sentence and see if any of the words exist in the vaheguru_list

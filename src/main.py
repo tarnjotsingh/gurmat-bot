@@ -2,15 +2,13 @@ import logging
 import os
 
 import discord
-from discord import Message, Member, Guild, RawReactionActionEvent
+from discord import Member, Guild, RawReactionActionEvent
 from discord.ext import commands
 from dotenv import load_dotenv
 from pymongo import MongoClient, errors
 
-from test_cog import Example
-# from radio import Radio
 from reaction_roles import ReactionRoles, handle_role_assignment
-from utils import message_handler, user_usage_log
+from utils import user_usage_log
 
 # Load environment variables
 load_dotenv()
@@ -48,11 +46,6 @@ async def on_ready():
 
 
 @bot.event
-async def on_message(msg: Message):
-    await message_handler(msg)
-
-
-@bot.event
 async def on_command_error(ctx: discord.ApplicationContext, error: commands.CommandError):
     logger.info(error)
 
@@ -85,7 +78,5 @@ async def ping(ctx: discord.ApplicationContext):
 
 
 # Initialise relevant classes and have them added as cogs to the main bot object
-# bot.add_cog(Radio(bot, database).logging(LOG_LEVEL))
 bot.add_cog(ReactionRoles(bot, database).logging(LOG_LEVEL))
-bot.add_cog(Example(bot))
 bot.run(TOKEN)
