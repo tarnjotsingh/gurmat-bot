@@ -4,14 +4,10 @@ from typing import Union
 import discord
 from discord import Message, Member, Embed, Role, RawReactionActionEvent, utils
 from discord.ext import commands
-from pymongo.collection import Cursor
 from pymongo.database import Database
 from validator_collection import checkers
 
-from utils import user_usage_log, BOT_ID
-
-# Stores key value pairs of channel_id:discord.Message
-react_msgs = {}
+from utils import user_usage_log, BOT_ID, DEFAULT_COLOUR
 
 
 class ReactionRoles(commands.Cog):
@@ -41,8 +37,8 @@ class ReactionRoles(commands.Cog):
         # Get all roles (in an iterable) associated with the server the command was called from
         all_roles = ctx.guild.roles
 
-        # Check provided group exists
-        group: Cursor = self.db.reaction_role_groups.find_one({'name': group_name.lower(), 'guild_id': ctx.guild.id})
+        # Check provided group exists, find_one returns a dictionary type
+        group = self.db.reaction_role_groups.find_one({'name': group_name.lower(), 'guild_id': ctx.guild.id})
         if not group:
             await self.send_invalid_group_msg(ctx, group_name)
             return
@@ -57,15 +53,18 @@ class ReactionRoles(commands.Cog):
                f"Each emoji has a server role associated with it. If you would like one of the roles listed you can " \
                f"click the associated emoji below this message.\n\n" \
                + roles_as_string
-        embed = self.embed_builder(0xffa900, f"{group_name.capitalize()} Roles", desc, image_url)
+        embed = self.embed_builder(DEFAULT_COLOUR, f"{group_name.capitalize()} Roles", desc, image_url)
 
+        # Send the interaction response for the slash command so that discord knows the command has been acknowledged
+        interaction = await ctx.respond(f"Listing role group {group_name}")
+        # Send a new message that we can easily track. Tracking the interactions is frustrating.
         message = await ctx.send(embed=embed)
-
-        logging.debug(f"message object: {message}")
 
         for r in reactions:
             await message.add_reaction(r)
 
+        # Delete the interaction to clean up the chat
+        await interaction.delete_original_response()
         await self.track_message(ctx, message, group)
 
     @staticmethod
@@ -86,14 +85,14 @@ class ReactionRoles(commands.Cog):
             desc = f"All role groups configured for `{ctx.guild.name}`:\n\n"
             groups_as_string = '\n'.join(mapped)
             full_description = f"{desc}{groups_as_string}"
-            embed = self.embed_builder(0xffa900, "Role Groups", full_description, None)
+            embed = self.embed_builder(DEFAULT_COLOUR, "Role Groups", full_description, None)
 
             await ctx.respond(embed=embed)
         else:
             await ctx.respond("You cannot do this from a private chat...")
 
-    @role.command()
-    async def add_group(self, ctx: discord.ApplicationContext, group_name: str, image_url: str):
+    @role.command(name="addgroup")
+    async def add_group(self, ctx: discord.ApplicationContext, group_name: str, image_url: str = None):
         """
         Add a new server reaction role group
 
@@ -102,7 +101,7 @@ class ReactionRoles(commands.Cog):
             img_url string: (Optional) Url for an optional image to associate with the group
         """
 
-        if not checkers.is_url(image_url):
+        if not checkers.is_url(image_url) and image_url:
             # TODO: Change this to an invalid URL message rather than invalid for clarity
             await self.send_invalid_args_msg(ctx)
             return
@@ -118,9 +117,9 @@ class ReactionRoles(commands.Cog):
                 }
             )
 
-            await ctx.respond(f"Successfully add group {group_name} 🙏🏼")
+            await ctx.respond(f"Successfully add group `{group_name}` 🙏🏼")
 
-    @role.command()
+    @role.command(name="addreaction")
     async def add_reaction(self, ctx: discord.ApplicationContext, group_name: str, role_name: str, reaction: str):
         """
         Add a new server role reaction
@@ -134,14 +133,14 @@ class ReactionRoles(commands.Cog):
         role: Role = utils.get(ctx.guild.roles, name=role_name)
 
         # Query db for group name to get group id and if a reaction role of the same type exists already
-        group: Cursor = self.db.reaction_role_groups.find_one({'name': group_name, 'guild_id': ctx.guild.id})
+        group = self.db.reaction_role_groups.find_one({'name': group_name, 'guild_id': ctx.guild.id})
         rr_check = self.db.reaction_roles.find_one({'reaction': reaction, 'group_id': group['_id']})
 
         if rr_check:
             await self.send_entry_exists_msg(ctx, "reaction role", "")
             return
 
-        if group:
+        if group and role:
             self.logger.info("Adding new reaction role")
             self.db.reaction_roles.insert_one(
                 {
@@ -152,10 +151,12 @@ class ReactionRoles(commands.Cog):
                 }
             )
             await ctx.respond('Reaction role added 🙏🏼')
-        else:
+        elif group is None:
             await self.send_invalid_group_msg(ctx, group_name)
+        elif role is None:
+            await ctx.respond("Role doesn't exist")
 
-    @role.command()
+    @role.command(name="removegroup")
     async def remove_group(self, ctx: discord.ApplicationContext, group_name: str):
         """
         Remove an existing server reaction role group
@@ -181,7 +182,7 @@ class ReactionRoles(commands.Cog):
             await ctx.respond(f"Reaction role group {group_name} has been removed. All reaction roles associated with"
                               f" this group have also been removed.")
 
-    @role.command()
+    @role.command(name="removereaction")
     async def remove_reaction(self, ctx: discord.ApplicationContext, group_name: str, reaction_emoji: str):
         """
        Remove an existing server reaction role
@@ -191,8 +192,8 @@ class ReactionRoles(commands.Cog):
             group string: The group the existing reaction role is assigned to
         """
         # Query database for an existing reaction role with the given reaction and group_name
-        group: Cursor = self.db.reaction_role_groups.find_one({'name': group_name, 'guild_id': ctx.guild.id})
-        rr_check: Cursor = self.db.reaction_roles.find_one({'reaction': reaction_emoji, 'group_id': group['_id']})
+        group = self.db.reaction_role_groups.find_one({'name': group_name, 'guild_id': ctx.guild.id})
+        rr_check = self.db.reaction_roles.find_one({'reaction': reaction_emoji, 'group_id': group['_id']})
 
         if rr_check:
             # Reaction role exists, we will attempt to remove it
@@ -203,21 +204,29 @@ class ReactionRoles(commands.Cog):
 
     # Helper functions
 
-    async def track_message(self, ctx: discord.ApplicationContext, message: Message, group: Cursor):
+    async def track_message(self, ctx: discord.ApplicationContext, message: Message, group: dict):
         channel_id = ctx.channel_id
-        # Check if message in the same channel and group_id is already tracked
-        msg_cursor = self.db.messages.find_one({'channel_id': channel_id, 'group_id': group})
-        if msg_cursor:
-            old_msg = await ctx.fetch_message(msg_cursor['_id'])
+        group_id = group['_id']
+
+        # Check if message in the same channel and group_id is already tracked in database. Result is dict type.
+        result = self.db.messages.find_one({'channel_id': channel_id, 'group_id': group_id})
+
+        # If a reaction message already exists, then we need to replace it
+        if result:
+            msg_id = result['_id']
+            old_msg = await ctx.fetch_message(msg_id)
+
+            # Delete the previously tracked message from the discord chat and from the database
             await old_msg.delete()
-            self.db.messages.delete_one({'_id': msg_cursor['_id']})
+            self.db.messages.delete_one({'_id': msg_id})
             if message:
-                self.db.messages.insert_one({'_id': message.id, 'channel_id': channel_id, 'group_id': group})
+                self.db.messages.insert_one({'_id': message.id, 'channel_id': channel_id, 'group_id': group_id})
         elif message:
             # Add msg to db for tracking
-            self.db.messages.insert_one({'_id': message.id, 'channel_id': channel_id, 'group_id': group})
+            logging.info(f"message added for tracking {message.id}")
+            self.db.messages.insert_one({'_id': message.id, 'channel_id': channel_id, 'group_id': group_id})
 
-    async def send_invalid_args_msg(self, ctx: discord.ApplicationContext):
+    async def send_invalid_args_msg(self, ctx: discord.ApplicationContext, description: str):
         embed = self.embed_builder(
             0xff0000,
             "Invalid arguments",
