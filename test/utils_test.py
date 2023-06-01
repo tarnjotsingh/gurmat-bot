@@ -1,5 +1,5 @@
 import unittest
-from utils import vaheguru_check, vaheguru_key_words
+from src.utils import vaheguru_check, vaheguru_key_words
 
 
 class UtilsTest(unittest.TestCase):
