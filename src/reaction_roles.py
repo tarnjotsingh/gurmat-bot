@@ -85,9 +85,9 @@ class ReactionRoles(commands.Cog):
             desc = f"All role groups configured for `{ctx.guild.name}`:\n\n"
             groups_as_string = '\n'.join(mapped)
             full_description = f"{desc}{groups_as_string}"
-            embed = self.embed_builder(DEFAULT_COLOUR, "Role Groups", full_description, None)
+            groups_embed = self.embed_builder(DEFAULT_COLOUR, "Role Groups", full_description, None)
 
-            await ctx.respond(embed=embed)
+            await ctx.respond(embed=groups_embed)
         else:
             await ctx.respond("You cannot do this from a private chat...")
 
@@ -100,24 +100,31 @@ class ReactionRoles(commands.Cog):
             group_name string: Name of the new group you want to add
             img_url string: (Optional) Url for an optional image to associate with the group
         """
-
         if not checkers.is_url(image_url) and image_url:
             # TODO: Change this to an invalid URL message rather than invalid for clarity
-            await self.send_invalid_args_msg(ctx)
+            await self.send_invalid_args_msg(ctx, "Invalid URL provided, cannot add group")
             return
 
         # Add group to the database if previous validation succeeded
         if group_name:
-            self.logger.info("Adding new reaction role group")
+            sanitised_group_name = group_name.lower()
+
+            # Check if group already exists....
+            group_check = self.db.reaction_role_groups.find_one({'name': sanitised_group_name, 'guild_id': ctx.guild.id})
+            if group_check:
+                await self.send_entry_exists_msg(ctx, "group", sanitised_group_name)
+                return
+
+            self.logger.info(f"Adding new group '{sanitised_group_name}' to database with guild_id '{ctx.guild.id} and image_url '{image_url}'")
             self.db.reaction_role_groups.insert_one(
                 {
                     'guild_id': ctx.guild.id,
-                    'name': group_name,
+                    'name': sanitised_group_name,
                     'image_url': image_url
                 }
             )
 
-            await ctx.respond(f"Successfully add group `{group_name}` 🙏🏼")
+            await ctx.respond(f"Successfully add group `{sanitised_group_name}` 🙏🏼")
 
     @role.command(name="addreaction")
     async def add_reaction(self, ctx: discord.ApplicationContext, group_name: str, role_name: str, reaction: str):
@@ -168,19 +175,22 @@ class ReactionRoles(commands.Cog):
             group_name string: Name of the new group you want to remove
         """
         # Validate group details
-        group_check = self.db.reaction_role_groups.find_one({'name': group_name, 'guild_id': ctx.guild.id})
+        sanitised_group_name = group_name.lower()
+        group_check = self.db.reaction_role_groups.find_one({'name': sanitised_group_name, 'guild_id': ctx.guild.id})
         if group_check:
             # If group exists, we need to remove it, but we also should check if there are roles
             # associated with the group
             group_rr = list(self.db.reaction_roles.find({'group_id': group_check['_id']}))
             # Remove all existing roles under the group
             for reaction in group_rr:
-                await self.remove_reaction(ctx, group_name, (reaction['reaction']))
+                await self.remove_reaction(ctx, sanitised_group_name, (reaction['reaction']))
             # Remove group after all associated roles have been removed
             self.db.reaction_role_groups.delete_one({'_id': group_check['_id']})
             await self.track_message(ctx, None, group_check)
-            await ctx.respond(f"Reaction role group {group_name} has been removed. All reaction roles associated with"
-                              f" this group have also been removed.")
+            await ctx.respond(f"Reaction role group {sanitised_group_name} has been removed. All reaction roles "
+                              f"associated with this group have also been removed.")
+        else:
+            await self.send_invalid_group_msg(ctx, sanitised_group_name)
 
     @role.command(name="removereaction")
     async def remove_reaction(self, ctx: discord.ApplicationContext, group_name: str, reaction_emoji: str):
@@ -233,7 +243,7 @@ class ReactionRoles(commands.Cog):
             "Refer to command help by typing `.help roles [sub_command]`",
             None
         )
-        await ctx.send(embed=embed)
+        await ctx.respond(embed=embed)
 
     async def send_invalid_group_msg(self, ctx: discord.ApplicationContext, group_name: str):
         embed = self.embed_builder(
@@ -242,7 +252,7 @@ class ReactionRoles(commands.Cog):
             f"The group `{group_name}` does not exist",
             None
         )
-        await ctx.send(embed=embed)
+        await ctx.respond(embed=embed)
 
     async def send_invalid_reaction_msg(self, ctx: discord.ApplicationContext, reaction: str, group_name: str):
         embed = self.embed_builder(
@@ -251,7 +261,7 @@ class ReactionRoles(commands.Cog):
             f"The reaction `{reaction}` has not been configured in the `{group_name}` group",
             None
         )
-        await ctx.send(embed=embed)
+        await ctx.respond(embed=embed)
 
     async def send_entry_exists_msg(self, ctx: discord.ApplicationContext, entry_type: str, entry_name: str):
         embed = self.embed_builder(
@@ -260,7 +270,7 @@ class ReactionRoles(commands.Cog):
             f"The {entry_type.casefold()} `{entry_name}` already exists",
             None
         )
-        await ctx.send(embed=embed)
+        await ctx.respond(embed=embed)
 
     @staticmethod
     def embed_builder(colour, title, desc, img_url) -> Embed:
