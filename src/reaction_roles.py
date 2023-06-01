@@ -158,9 +158,9 @@ class ReactionRoles(commands.Cog):
                 }
             )
             await ctx.respond('Reaction role added 🙏🏼')
-        elif group is None:
+        elif not group:
             await self.send_invalid_group_msg(ctx, group_name)
-        elif role is None:
+        elif not role:
             await ctx.respond("Role doesn't exist")
 
     @role.command(name="removegroup")
@@ -224,11 +224,18 @@ class ReactionRoles(commands.Cog):
         # If a reaction message already exists, then we need to replace it
         if result:
             msg_id = result['_id']
-            old_msg = await ctx.fetch_message(msg_id)
 
-            # Delete the previously tracked message from the discord chat and from the database
-            await old_msg.delete()
+            try:
+                # Find and delete the previously tracked message from the discord chat and from the database
+                old_msg = await ctx.fetch_message(msg_id)
+                await old_msg.delete()
+            except discord.errors.NotFound as not_found:
+                # Not found would mean the original message was deleted manually
+                self.logger.info(f"Tracked message for group '{group['name']}' could not be found")
+
+            # Once attempting to delete the old message has been done, we can remove the entry from the db
             self.db.messages.delete_one({'_id': msg_id})
+
             if message:
                 self.db.messages.insert_one({'_id': message.id, 'channel_id': channel_id, 'group_id': group_id})
         elif message:
