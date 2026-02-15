@@ -1,0 +1,44 @@
+name: Run Python Tests
+
+on:
+  push:
+    branches:
+      - main  # Or your main branch name
+  pull_request:
+    branches:
+      - main  # Or your main branch name
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python_version: '3.x'  # Specify your Python version (e.g., 3.9, 3.10, 3.11)
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt  # Assuming you have a requirements.txt file
+          # Optionally install other testing dependencies here, e.g.,
+          # python -m pip install pytest pytest-cov
+
+      - name: Run tests
+        run: pytest  # Or your test command (e.g., pytest -v --cov=myproject)
+
+      - name: Upload test coverage (optional)
+        if: success()
+        run: |
+          # Install coverage if not already installed
+          python -m pip install coverage
+
+          # Run coverage
+          coverage run -m pytest
+
+          # Upload coverage report
+          coverage xml
